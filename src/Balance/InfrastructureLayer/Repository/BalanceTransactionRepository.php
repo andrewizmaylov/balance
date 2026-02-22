@@ -34,7 +34,8 @@ class BalanceTransactionRepository implements BalanceTransactionRepositoryInterf
 
         return new BalanceTransaction(
             $record->id,
-            $record->account_id,
+            $record->source_account_id,
+            $record->destination_account_id,
             CurrenciesEnum::tryFrom($record->coin),
             $record->amount,
             $record->chain_name,

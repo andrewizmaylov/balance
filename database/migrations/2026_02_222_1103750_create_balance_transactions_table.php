@@ -17,8 +17,10 @@ return new class extends Migration
     {
         Schema::create('balance_transactions', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('account_id')->comment('One of many User\'s accounts');
-            $table->foreign('account_id')->references('id')->on('accounts');
+            $table->unsignedBigInteger('source_account_id')->comment('One of many User\'s accounts');
+            $table->foreign('source_account_id')->references('id')->on('accounts');
+            $table->unsignedBigInteger('destination_account_id')->comment('One of many User\'s accounts');
+            $table->foreign('destination_account_id')->references('id')->on('accounts');
             $table->enum('coin', array_column(CurrenciesEnum::cases(), 'value'))->comment('Fiat or Crypto currencies');
             $table->decimal('amount', 36, 18)->comment('Amount');
 
@@ -29,7 +31,7 @@ return new class extends Migration
             $table->unsignedBigInteger('order_id')->nullable()->comment('Order ID');
 
             $table->enum('transaction_type', array_column(TransactionTypeEnum::cases(), 'value'))->comment('Money flow Deposit or Withdrawal');
-            $table->enum('status', array_column(TransactionStatusEnum::cases(), 'value'))->default(TransactionStatusEnum::Submited->value);
+            $table->enum('status', array_column(TransactionStatusEnum::cases(), 'value'))->default(TransactionStatusEnum::Request->value);
             $table->json('status_history')->nullable()->comment('Preserved status change history');
             $table->timestamps();
         });

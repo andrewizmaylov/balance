@@ -24,7 +24,8 @@ class BalanceTransactionFactory extends Factory
     public function definition(): array
     {
         return [
-            'account_id' => Account::factory(),
+            'source_account_id' => Account::factory(),
+            'destination_account_id' => Account::factory(),
             'coin' => fake()->randomElement(CurrenciesEnum::cases())->value,
             'amount' => fake()->randomFloat(18, 0.001, 1000),
             'chain_name' => null,
@@ -33,7 +34,7 @@ class BalanceTransactionFactory extends Factory
             'transaction_id' => null,
             'order_id' => null,
             'transaction_type' => fake()->randomElement(TransactionTypeEnum::cases())->value,
-            'status' => TransactionStatusEnum::Submited->value,
+            'status' => TransactionStatusEnum::Request->value,
             'status_history' => null,
         ];
     }

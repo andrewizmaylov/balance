@@ -14,7 +14,8 @@ readonly class BalanceTransaction
 {
     public function __construct(
         public int $id,
-        public int $accountId,
+        public int $source_account_id,
+        public int $destination_account_id,
         public CurrenciesEnum $coin,
         public float $amount,
         public ?string $chainName = null,

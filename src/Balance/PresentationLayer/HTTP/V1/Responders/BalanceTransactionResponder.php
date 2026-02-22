@@ -40,7 +40,8 @@ class BalanceTransactionResponder implements ResponderInterface
             'type' => 'BalanceTransaction',
             'attributes' => [
                 'id' => $entity->id,
-                'account_id' => $entity->accountId,
+                'source_account_id' => $entity->source_account_id,
+                'destination_account_id' => $entity->destination_account_id,
                 'coin' => $entity->coin->value,
                 'amount' => $entity->amount,
                 'chain_name' => $entity->chainName,

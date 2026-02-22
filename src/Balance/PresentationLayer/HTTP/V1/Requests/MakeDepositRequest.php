@@ -30,7 +30,8 @@ class MakeDepositRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_id' => 'required|integer|exists:accounts,id',
+            'source_account_id' => 'required|integer|exists:accounts,id',
+            'destination_account_id' => 'required|integer|exists:accounts,id',
             'coin' => ['required', new Enum(CurrenciesEnum::class)],
             'amount' => 'required|numeric|gt:0',
             'chain_name' => 'nullable|string|max:36',

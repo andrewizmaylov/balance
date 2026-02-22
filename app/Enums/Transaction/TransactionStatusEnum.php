@@ -6,11 +6,7 @@ enum TransactionStatusEnum: string
 {
     case Request = 'request';
 
-    case Submited = 'submited';
-
     case Pending = 'pending';
-
-    case Broadcasted = 'broadcasted';
 
     case Completed = 'completed';
 
