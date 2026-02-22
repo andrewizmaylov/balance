@@ -32,12 +32,12 @@ class MakeDepositRequest extends FormRequest
         return [
             'account_id' => 'required|integer|exists:accounts,id',
             'coin' => ['required', new Enum(CurrenciesEnum::class)],
-            'amount' => 'required|number|gt:0',
+            'amount' => 'required|numeric|gt:0',
             'chain_name' => 'nullable|string|max:36',
             'chain_type' => ['nullable', new Enum(ChainTypeEnum::class)],
             'address' => 'nullable|string|max:255',
             'transaction_id' => 'nullable|string|max:255',
-            'order_id' => 'required|int|gt:0',
+            'order_id' => 'nullable|int|gt:0',
             'transaction_type' => ['nullable', new Enum(TransactionTypeEnum::class)],
             'status' => ['nullable', new Enum(TransactionStatusEnum::class)],
         ];

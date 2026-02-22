@@ -4,26 +4,34 @@ declare(strict_types=1);
 
 namespace Src\Balance\PresentationLayer\HTTP\V1\Responders;
 
-use Exception;
-use DomainDriven\BaseDomainStructure\Responder\PaginatedResult;
 use DomainDriven\BaseDomainStructure\Responder\Contracts\ResponderInterface;
+use DomainDriven\BaseDomainStructure\Responder\PaginatedResult;
+use Exception;
 use Src\Balance\DomainLayer\Entities\BalanceTransaction;
 
 
-class MakeWithdrawalResponder implements ResponderInterface
+class BalanceTransactionResponder implements ResponderInterface
 {
+    /**
+     * @param PaginatedResult $paginatedResults
+     * @return PaginatedResult
+     * @throws Exception
+     */
     public function composePaginatedResults(PaginatedResult $paginatedResults): PaginatedResult
     {
-        $processedItems = array_map(fn ($record) => $this->composeEntity($record), $paginatedResults->items);
+        $processedItems = array_map(fn($record) => $this->composeEntity($record), $paginatedResults->items);
 
         $paginatedResults->withProcessedItems($processedItems);
 
         return $paginatedResults;
     }
 
+    /**
+     * @throws Exception
+     */
     public function composeEntity(object $entity): array
     {
-        if (! $entity instanceof BalanceTransaction) {
+        if (!$entity instanceof BalanceTransaction) {
             throw new Exception('Received unsupported entity ' . BalanceTransaction::class);
         }
 
@@ -32,12 +40,11 @@ class MakeWithdrawalResponder implements ResponderInterface
             'type' => 'BalanceTransaction',
             'attributes' => [
                 'id' => $entity->id,
-                'account_id' => $entity->account->id,
+                'account_id' => $entity->accountId,
                 'coin' => $entity->coin->value,
                 'amount' => $entity->amount,
-                'fee' => $entity->fee,
                 'chain_name' => $entity->chainName,
-                'chain_type' => $entity->chainType->value,
+                'chain_type' => $entity->chainType?->value,
                 'address' => $entity->address,
                 'transaction_id' => $entity->transactionId,
                 'order_id' => $entity->orderId,
@@ -47,7 +54,7 @@ class MakeWithdrawalResponder implements ResponderInterface
         ];
     }
 
-    public function composeFromModel(object $model)
+    public function composeFromModel(object $model): object
     {
     }
 }

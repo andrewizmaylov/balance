@@ -10,7 +10,7 @@ use DomainDriven\BaseDomainStructure\Responder\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Src\Balance\PresentationLayer\HTTP\V1\Requests\MakeWithdrawalRequest;
 use Src\Balance\ApplicationLayer\UseCases\MakeWithdrawalUseCase;
-use Src\Balance\PresentationLayer\HTTP\V1\Responders\MakeWithdrawalResponder;
+use Src\Balance\PresentationLayer\HTTP\V1\Responders\BalanceTransactionResponder;
 use Throwable;
 
 final class MakeWithdrawalController extends Controller
@@ -18,7 +18,7 @@ final class MakeWithdrawalController extends Controller
     public function __construct(
         public LoggerInterface $logger,
         public MakeWithdrawalUseCase $process,
-        public MakeWithdrawalResponder $responder,
+        public BalanceTransactionResponder $responder,
     ) {}
 
     public function __invoke(MakeWithdrawalRequest $request): JsonResponse

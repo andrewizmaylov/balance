@@ -32,7 +32,7 @@ class MakeWithdrawalRequest extends FormRequest
         return [
             'account_id' => 'required|integer|exists:accounts,id',
             'coin' => ['required', new Enum(CurrenciesEnum::class)],
-            'amount' => 'required|number|gt:0',
+            'amount' => 'required|numeric|gt:0',
             'chain_name' => 'nullable|string|max:36',
             'chain_type' => ['nullable', new Enum(ChainTypeEnum::class)],
             'address' => 'nullable|string|max:255',

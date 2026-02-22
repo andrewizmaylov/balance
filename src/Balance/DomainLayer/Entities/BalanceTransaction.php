@@ -14,15 +14,14 @@ readonly class BalanceTransaction
 {
     public function __construct(
         public int $id,
-        public Account $account,
+        public int $accountId,
         public CurrenciesEnum $coin,
-        public int $amount,
-        public int $fee,
-        public string $chainName,
-        public ChainTypeEnum $chainType,
-        public string $address,
-        public string $transactionId,
-        public string $orderId,
+        public float $amount,
+        public ?string $chainName = null,
+        public ?ChainTypeEnum $chainType = null,
+        public ?string $address = null,
+        public ?string $transactionId = null,
+        public ?string $orderId = null,
         public TransactionTypeEnum $transactionType,
         public TransactionStatusEnum $status,
     )

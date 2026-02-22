@@ -7,10 +7,11 @@ namespace Src\Balance\PresentationLayer\HTTP\V1\Controllers;
 use App\Http\Controllers\Controller;
 use Psr\Log\LoggerInterface;
 use DomainDriven\BaseDomainStructure\Responder\JsonResponse;
+use Src\Balance\DomainLayer\Entities\BalanceTransaction;
 use Symfony\Component\HttpFoundation\Response;
 use Src\Balance\PresentationLayer\HTTP\V1\Requests\MakeDepositRequest;
 use Src\Balance\ApplicationLayer\UseCases\MakeDepositUseCase;
-use Src\Balance\PresentationLayer\HTTP\V1\Responders\MakeDepositResponder;
+use Src\Balance\PresentationLayer\HTTP\V1\Responders\BalanceTransactionResponder;
 use Throwable;
 
 final class MakeDepositController extends Controller
@@ -18,13 +19,13 @@ final class MakeDepositController extends Controller
     public function __construct(
         public LoggerInterface $logger,
         public MakeDepositUseCase $process,
-        public MakeDepositResponder $responder,
+        public BalanceTransactionResponder $responder,
     ) {}
 
     public function __invoke(MakeDepositRequest $request): JsonResponse
     {
         try {
-            $result = $this->process->execute();
+            $result = $this->process->execute($request->all());
 
             $response = new JsonResponse;
             $response->setData(

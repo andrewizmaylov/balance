@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BalanceTransaction extends Model
+class BalanceTransaction extends BaseModel
 {
     use HasFactory;
 
@@ -14,4 +14,9 @@ class BalanceTransaction extends Model
     ];
 
     protected $guarded = ['id'];
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
 }

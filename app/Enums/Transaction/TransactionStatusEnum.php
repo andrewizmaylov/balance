@@ -4,6 +4,8 @@ namespace App\Enums\Transaction;
 
 enum TransactionStatusEnum: string
 {
+    case Request = 'request';
+
     case Submited = 'submited';
 
     case Pending = 'pending';
