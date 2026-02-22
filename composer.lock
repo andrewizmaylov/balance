@@ -4,8 +4,59 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d23fe56013f525b5f300f2d9581dbda",
+    "content-hash": "84637cbbffb0afb0395a06b8caf58738",
     "packages": [
+        {
+            "name": "andreyizmaylov/base-domain-structure",
+            "version": "1.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andrewizmaylov/ddd-structure.git",
+                "reference": "7f6827bf30daa0e038e890b8cf89f35d2a992990"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andrewizmaylov/ddd-structure/zipball/7f6827bf30daa0e038e890b8cf89f35d2a992990",
+                "reference": "7f6827bf30daa0e038e890b8cf89f35d2a992990",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.9",
+                "pestphp/pest": "^4.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "DomainDriven\\BaseDomainStructure\\Providers\\BaseDomainStructureServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DomainDriven\\BaseDomainStructure\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "andrewizmaylov",
+                    "email": "andrew.izmaylov@gmail.com"
+                }
+            ],
+            "description": "Base domain structure for Laravel applications",
+            "support": {
+                "issues": "https://github.com/andrewizmaylov/ddd-structure/issues",
+                "source": "https://github.com/andrewizmaylov/ddd-structure/tree/1.2.3"
+            },
+            "time": "2026-02-22T10:39:54+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.14.8",
