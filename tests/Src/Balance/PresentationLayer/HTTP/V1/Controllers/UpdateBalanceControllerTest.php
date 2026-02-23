@@ -90,9 +90,29 @@ function createTransferTestSetup(array $operation): array
 test('it lock correct amount of coins after Deposit transaction submit', function (array $operation) {
     $setup = createTransferTestSetup($operation);
 
-    $this->actingAs($setup['actingUser'])
-        ->post(route('update-balance'), $setup['transaction']->toArray())
-        ->assertOk();
+    $response = $this->actingAs($setup['actingUser'])
+        ->post(route('update-balance'), $setup['transaction']->toArray());
+
+    $response->assertOk();
+    $response->assertJsonStructure([
+        'id',
+        'type',
+        'attributes' => [
+            'id',
+            'source_account_id',
+            'destination_account_id',
+            'coin',
+            'amount',
+            'transaction_id',
+            'transaction_type',
+            'status',
+        ],
+    ]);
+    $response->assertJsonPath('attributes.source_account_id', $setup['sourceAccount']->id);
+    $response->assertJsonPath('attributes.destination_account_id', $setup['destAccount']->id);
+    $this->assertEqualsWithDelta($operation['amount'], (float) $response->json('attributes.amount'), 0.01);
+    $response->assertJsonPath('attributes.transaction_type', TransactionTypeEnum::Deposit->value);
+    $response->assertJsonPath('attributes.coin', CurrenciesEnum::BTC->value);
 
     $this->assertDatabaseCount('balance_transactions', 4);
 
@@ -104,29 +124,65 @@ test('it lock correct amount of coins after Deposit transaction submit', functio
     $withdrawalFee = $validationService->calculateWithdrawalFee($operation['amount']);
 
     $transactions = BalanceTransaction::query()
-        ->where('transaction_id', $setup['transactionId'])->get();
+        ->where('transaction_id', $setup['transactionId'])
+        ->orderBy('id')
+        ->get();
     $this->assertCount(4, $transactions);
 
-    $depositTransaction = $transactions->where('source_account_id', $setup['sourceAccount']->id)
+    // All transactions share the same transaction_id and are stored as Pending
+    foreach ($transactions as $tx) {
+        $this->assertEquals($setup['transactionId'], $tx->transaction_id);
+        $this->assertEquals(TransactionStatusEnum::Pending->value, $tx->status);
+        $this->assertEquals(CurrenciesEnum::BTC->value, $tx->coin);
+    }
+
+    // 1. Main Deposit: source -> dest, amount
+    $mainDeposit = $transactions->where('amount', $operation['amount'])
         ->where('transaction_type', TransactionTypeEnum::Deposit->value)
+        ->where('source_account_id', $setup['sourceAccount']->id)
+        ->where('destination_account_id', $setup['destAccount']->id)
         ->first();
-    $this->assertEquals($depositTransaction->amount, $operation['amount']);
+    $this->assertNotNull($mainDeposit, 'Main deposit transaction should exist');
+    $this->assertEquals($operation['amount'], $mainDeposit->amount);
 
-    $withdrawalTransaction = $transactions->where('destination_account_id', $setup['destAccount']->id)
-        ->where('transaction_type', TransactionTypeEnum::Deposit->value)
+    // 2. Reverse Withdrawal: dest -> source, amount
+    $reverseWithdrawal = $transactions->where('amount', $operation['amount'])
+        ->where('transaction_type', TransactionTypeEnum::Withdrawal->value)
+        ->where('source_account_id', $setup['destAccount']->id)
+        ->where('destination_account_id', $setup['sourceAccount']->id)
         ->first();
+    $this->assertNotNull($reverseWithdrawal, 'Reverse withdrawal transaction should exist');
 
-    $this->assertEquals($withdrawalTransaction->amount, $operation['amount']);
+    // 3. Fee Deposit: source -> platform, depositFee
+    $feeDepositTx = $transactions->where('amount', $depositFee)
+        ->where('destination_account_id', BalanceUpdateService::PLATFORM)
+        ->first();
+    $this->assertNotNull($feeDepositTx, 'Fee deposit transaction should exist');
+    $this->assertEquals($setup['sourceAccount']->id, $feeDepositTx->source_account_id);
+    $this->assertEquals(TransactionTypeEnum::Deposit->value, $feeDepositTx->transaction_type);
 
-//     Check balances (per UpdateBalanceUseCase: source balance -= amount + withdrawalFee, locked += withdrawalFee + amount; destination locked -= depositFee + amount)
+    // 4. Fee Withdrawal: dest -> platform, withdrawalFee
+    $feeWithdrawalTx = $transactions->where('amount', $withdrawalFee)
+        ->where('destination_account_id', BalanceUpdateService::PLATFORM)
+        ->first();
+    $this->assertNotNull($feeWithdrawalTx, 'Fee withdrawal transaction should exist');
+    $this->assertEquals($setup['destAccount']->id, $feeWithdrawalTx->source_account_id);
+    $this->assertEquals(TransactionTypeEnum::Deposit->value, $feeWithdrawalTx->transaction_type);
+
+    // Balances: source balance -= amount + withdrawalFee, locked += withdrawalFee + amount
     $setup['sourceAccount']->refresh();
     $this->assertEquals($operation['balance1'] - $operation['amount'] - $withdrawalFee, $setup['sourceAccount']->balance);
     $this->assertEquals($operation['locked_balance1'] + $withdrawalFee + $operation['amount'], $setup['sourceAccount']->locked_balance);
 
+    // Destination: only locked changes (locked -= depositFee + amount); balance unchanged
     $setup['destAccount']->refresh();
+    $this->assertEquals($operation['balance2'], $setup['destAccount']->balance, 'Destination balance should remain unchanged');
     $this->assertEquals($operation['locked_balance2'] - $depositFee + $operation['amount'], $setup['destAccount']->locked_balance);
 
-    $this->assertEquals($depositFee + $withdrawalFee, $setup['platformAccount']->fresh()->locked_balance);
+    // Platform: only locked increases, balance stays 0
+    $platformAccount = $setup['platformAccount']->fresh();
+    $this->assertEquals(0, $platformAccount->balance, 'Platform balance should remain 0');
+    $this->assertEquals($depositFee + $withdrawalFee, $platformAccount->locked_balance);
 })->with([
     [['balance1' => 5000, 'locked_balance1' => 200, 'balance2' => 3000, 'locked_balance2' => 600, 'amount' => 1285.00, 'type' => TransactionTypeEnum::Deposit->value]],
 ]);
@@ -134,9 +190,29 @@ test('it lock correct amount of coins after Deposit transaction submit', functio
 test('it lock correct amount of coins after Withdrawal transaction submit', function (array $operation) {
     $setup = createTransferTestSetup($operation);
 
-    $this->actingAs($setup['actingUser'])
-        ->post(route('update-balance'), $setup['transaction']->toArray())
-        ->assertOk();
+    $response = $this->actingAs($setup['actingUser'])
+        ->post(route('update-balance'), $setup['transaction']->toArray());
+
+    $response->assertOk();
+    $response->assertJsonStructure([
+        'id',
+        'type',
+        'attributes' => [
+            'id',
+            'source_account_id',
+            'destination_account_id',
+            'coin',
+            'amount',
+            'transaction_id',
+            'transaction_type',
+            'status',
+        ],
+    ]);
+    $response->assertJsonPath('attributes.source_account_id', $setup['sourceAccount']->id);
+    $response->assertJsonPath('attributes.destination_account_id', $setup['destAccount']->id);
+    $this->assertEqualsWithDelta($operation['amount'], (float) $response->json('attributes.amount'), 0.01);
+    $response->assertJsonPath('attributes.transaction_type', TransactionTypeEnum::Withdrawal->value);
+    $response->assertJsonPath('attributes.coin', CurrenciesEnum::BTC->value);
 
     $this->assertDatabaseCount('balance_transactions', 4);
 
@@ -148,29 +224,65 @@ test('it lock correct amount of coins after Withdrawal transaction submit', func
     $withdrawalFee = $validationService->calculateWithdrawalFee($operation['amount']);
 
     $transactions = BalanceTransaction::query()
-        ->where('transaction_id', $setup['transactionId'])->get();
+        ->where('transaction_id', $setup['transactionId'])
+        ->orderBy('id')
+        ->get();
     $this->assertCount(4, $transactions);
 
-    // For Withdrawal: source is account2, destination is account1
-    $withdrawalTransaction = $transactions->where('source_account_id', $setup['sourceAccount']->id)
-        ->where('transaction_type', TransactionTypeEnum::Withdrawal->value)
-        ->first();
-    $this->assertEquals($withdrawalTransaction->amount, $operation['amount']);
+    // All transactions share the same transaction_id and are stored as Pending
+    foreach ($transactions as $tx) {
+        $this->assertEquals($setup['transactionId'], $tx->transaction_id);
+        $this->assertEquals(TransactionStatusEnum::Pending->value, $tx->status);
+        $this->assertEquals(CurrenciesEnum::BTC->value, $tx->coin);
+    }
 
-    $depositTransaction = $transactions->where('destination_account_id', $setup['destAccount']->id)
+    // 1. Main Withdrawal: source (account2) -> dest (account1), amount
+    $mainWithdrawal = $transactions->where('amount', $operation['amount'])
         ->where('transaction_type', TransactionTypeEnum::Withdrawal->value)
+        ->where('source_account_id', $setup['sourceAccount']->id)
+        ->where('destination_account_id', $setup['destAccount']->id)
         ->first();
-    $this->assertEquals($depositTransaction->amount, $operation['amount']);
+    $this->assertNotNull($mainWithdrawal, 'Main withdrawal transaction should exist');
+    $this->assertEquals($operation['amount'], $mainWithdrawal->amount);
 
-    // Check balances: source (account2) balance -= amount + withdrawalFee, locked += withdrawalFee + amount; dest (account1) locked -= depositFee + amount
+    // 2. Reverse Deposit: dest -> source, amount
+    $reverseDeposit = $transactions->where('amount', $operation['amount'])
+        ->where('transaction_type', TransactionTypeEnum::Deposit->value)
+        ->where('source_account_id', $setup['destAccount']->id)
+        ->where('destination_account_id', $setup['sourceAccount']->id)
+        ->first();
+    $this->assertNotNull($reverseDeposit, 'Reverse deposit transaction should exist');
+
+    // 3. Fee Deposit: dest -> platform (for Withdrawal, feeDeposit source = original destination)
+    $feeDepositTx = $transactions->where('amount', $depositFee)
+        ->where('destination_account_id', BalanceUpdateService::PLATFORM)
+        ->first();
+    $this->assertNotNull($feeDepositTx, 'Fee deposit transaction should exist');
+    $this->assertEquals($setup['destAccount']->id, $feeDepositTx->source_account_id);
+    $this->assertEquals(TransactionTypeEnum::Deposit->value, $feeDepositTx->transaction_type);
+
+    // 4. Fee Withdrawal: source -> platform (for Withdrawal, feeWithdrawal source = original source)
+    $feeWithdrawalTx = $transactions->where('amount', $withdrawalFee)
+        ->where('destination_account_id', BalanceUpdateService::PLATFORM)
+        ->first();
+    $this->assertNotNull($feeWithdrawalTx, 'Fee withdrawal transaction should exist');
+    $this->assertEquals($setup['sourceAccount']->id, $feeWithdrawalTx->source_account_id);
+    $this->assertEquals(TransactionTypeEnum::Deposit->value, $feeWithdrawalTx->transaction_type);
+
+    // Balances: source (account2) balance -= amount + withdrawalFee, locked += withdrawalFee + amount
     $setup['sourceAccount']->refresh();
     $this->assertEquals($operation['balance2'] - $operation['amount'] - $withdrawalFee, $setup['sourceAccount']->balance);
     $this->assertEquals($operation['locked_balance2'] + $withdrawalFee + $operation['amount'], $setup['sourceAccount']->locked_balance);
 
+    // Destination (account1): only locked changes; balance unchanged
     $setup['destAccount']->refresh();
+    $this->assertEquals($operation['balance1'], $setup['destAccount']->balance, 'Destination balance should remain unchanged');
     $this->assertEquals($operation['locked_balance1'] - $depositFee + $operation['amount'], $setup['destAccount']->locked_balance);
 
-    $this->assertEquals($depositFee + $withdrawalFee, $setup['platformAccount']->fresh()->locked_balance);
+    // Platform: only locked increases, balance stays 0
+    $platformAccount = $setup['platformAccount']->fresh();
+    $this->assertEquals(0, $platformAccount->balance, 'Platform balance should remain 0');
+    $this->assertEquals($depositFee + $withdrawalFee, $platformAccount->locked_balance);
 })->with([
     [['balance1' => 5000, 'locked_balance1' => 200, 'balance2' => 3000, 'locked_balance2' => 600, 'amount' => 1283.00, 'type' => TransactionTypeEnum::Withdrawal->value]],
 ]);
