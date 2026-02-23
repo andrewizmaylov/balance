@@ -8,23 +8,23 @@ use App\Http\Controllers\Controller;
 use Psr\Log\LoggerInterface;
 use DomainDriven\BaseDomainStructure\Responder\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Src\Balance\PresentationLayer\HTTP\V1\Requests\MakeWithdrawalRequest;
-use Src\Balance\ApplicationLayer\UseCases\MakeWithdrawalUseCase;
+use Src\Balance\PresentationLayer\HTTP\V1\Requests\UpdateBalanceRequest;
+use Src\Balance\ApplicationLayer\UseCases\UpdateBalanceUseCase;
 use Src\Balance\PresentationLayer\HTTP\V1\Responders\BalanceTransactionResponder;
 use Throwable;
 
-final class MakeWithdrawalController extends Controller
+final class UpdateBalanceController extends Controller
 {
     public function __construct(
         public LoggerInterface $logger,
-        public MakeWithdrawalUseCase $process,
+        public UpdateBalanceUseCase $process,
         public BalanceTransactionResponder $responder,
     ) {}
 
-    public function __invoke(MakeWithdrawalRequest $request): JsonResponse
+    public function __invoke(UpdateBalanceRequest $request): JsonResponse
     {
         try {
-            $result = $this->process->execute();
+            $result = $this->process->execute($request->all());
 
             $response = new JsonResponse;
             $response->setData(
@@ -32,7 +32,7 @@ final class MakeWithdrawalController extends Controller
             );
         } catch (Throwable $exception) {
             $this->logger->critical(
-                'An unexpected error occurred with MakeWithdrawalController' . $exception->getMessage(),
+                'An unexpected error occurred with UpdateBalanceController' . $exception->getMessage(),
                 ['stacktrace' => $exception->getTraceAsString()],
             );
 

@@ -11,7 +11,7 @@ use App\Enums\Transaction\TransactionTypeEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
-class MakeWithdrawalRequest extends FormRequest
+class UpdateBalanceRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -30,14 +30,15 @@ class MakeWithdrawalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_id' => 'required|integer|exists:accounts,id',
+            'source_account_id' => 'required|integer|exists:accounts,id',
+            'destination_account_id' => 'required|integer|exists:accounts,id',
             'coin' => ['required', new Enum(CurrenciesEnum::class)],
             'amount' => 'required|numeric|gt:0',
             'chain_name' => 'nullable|string|max:36',
             'chain_type' => ['nullable', new Enum(ChainTypeEnum::class)],
             'address' => 'nullable|string|max:255',
             'transaction_id' => 'nullable|string|max:255',
-            'order_id' => 'required|int|gt:0',
+            'order_id' => 'nullable|int|gt:0',
             'transaction_type' => ['nullable', new Enum(TransactionTypeEnum::class)],
             'status' => ['nullable', new Enum(TransactionStatusEnum::class)],
         ];

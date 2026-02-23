@@ -10,28 +10,15 @@ use App\Enums\Transaction\TransactionTypeEnum;
 use App\Models\Account;
 use App\Models\BalanceTransaction;
 use App\Models\User;
-use Illuminate\Database\ConnectionInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Src\Balance\DomainLayer\Repository\BalanceTransactionRepositoryInterface;
-use Src\Balance\DomainLayer\Services\BalanceValidationService;
-use Src\Balance\DomainLayer\Storage\BalanceTransactionStorageInterface;
-use Src\Balance\InfrastructureLayer\Repository\BalanceTransactionRepository;
-use Src\Balance\InfrastructureLayer\Storage\BalanceTransactionStorage;
+use Src\Balance\DomainLayer\Repository\AccountRepositoryInterface;
+use Src\Balance\DomainLayer\Services\BalanceUpdateService;
+use Src\Balance\DomainLayer\Storage\AccountStorageInterface;
 
 uses(RefreshDatabase::class);
 
-uses(RefreshDatabase::class);
-
-beforeEach(function () {
-    app()->bind(BalanceTransactionRepositoryInterface::class, BalanceTransactionRepository::class);
-    app()->bind(BalanceTransactionStorageInterface::class, BalanceTransactionStorage::class);
-    app()->bind(ConnectionInterface::class, fn () => DB::connection());
-});
-
-
-test('make deposit', function (array $operation) {
+test('it lock correct amount of coins after transaction submit', function (array $operation) {
     $platform = User::factory()->create();
     $user1 = User::factory()->create();
     $user2 = User::factory()->create();
@@ -76,18 +63,21 @@ test('make deposit', function (array $operation) {
     ])->make();
 
     $this->actingAs($user1)
-        ->post(route('make-deposit'), $transaction->toArray())
+        ->post(route('update-balance'), $transaction->toArray())
         ->assertOk();
 
-    $this->assertDatabaseCount('balance_transactions', 6);
+    $this->assertDatabaseCount('balance_transactions', 4);
 
-    $validationService = new BalanceValidationService();
+    $validationService = new BalanceUpdateService(
+        app(AccountStorageInterface::class),
+        app(AccountRepositoryInterface::class),
+    );
     $depositFee = $validationService->calculateDepositFee($operation['amount']);
-    $withdrawalFee = $validationService->calculateDepositFee($operation['amount']);
+    $withdrawalFee = $validationService->calculateWithdrawalFee($operation['amount']);
 
     $transactions = BalanceTransaction::query()
         ->where('transaction_id', $transactionId)->get();
-    $this->assertCount(6, $transactions);
+    $this->assertCount(4, $transactions);
 
     $depositTransaction = $transactions->where('source_account_id', $account1->id)
         ->where('transaction_type', TransactionTypeEnum::Deposit->value)
@@ -100,13 +90,16 @@ test('make deposit', function (array $operation) {
 
     $this->assertEquals($withdrawalTransaction->amount, $operation['amount']);
 
-    // Check balances
-    $account1 = Account::query()->findOrFail($account1->id);
-//    dd($account1);
-    $this->assertEquals($account1->locked_balance - $operation['amount'] + $withdrawalFee, $account1->locked_balance);
+    // Check balances (per UpdateBalanceUseCase: source balance -= amount + withdrawalFee, locked += withdrawalFee + amount; destination locked -= depositFee + amount)
+    $account1->refresh();
+    $this->assertEquals($operation['balance1'] - $operation['amount'] - $withdrawalFee, $account1->balance);
+    $this->assertEquals($operation['locked_balance1'] + $withdrawalFee + $operation['amount'], $account1->locked_balance);
 
-//    $account2 = Account::query()->findOrFail($account2->id);
-//    $this->assertEquals($operation['locked_balance2'] + $operation['amount'] - $depositFee, $account2->balance);
+    $account2->refresh();
+    $this->assertEquals($operation['locked_balance2'] - $depositFee + $operation['amount'], $account2->locked_balance);
+
+    $this->assertEquals($depositFee + $withdrawalFee, $platformAccount->fresh()->locked_balance);
+
 })->with([
     [['balance1' => 5000, 'locked_balance1' => 200, 'balance2' => 3000, 'locked_balance2' => 600, 'amount' => 1285.00, ]],
 ]);
