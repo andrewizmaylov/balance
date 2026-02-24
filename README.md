@@ -62,7 +62,14 @@ php artisan test
 
 - **CreateTransactionsService** — создание транзакций (основная, обратная, комиссии)
 - **BalanceUpdateService** — валидация счетов и обновление балансов
-- **UpdateBalanceUseCase** — оркестрация процесса обновления баланса
+- **CheckTransactionService** — проверка возможности действий над транзакциями
+
+
+- **PutOrderUseCase** — оркестрация процесса размещения заявки на перевод средств
+- **CompleteOrderUseCase** — оркестрация процесса перевода заказа в статус Completed
+- **CancelOrderUseCase** — оркестрация процесса перевода заказа в статус Canceled
+- **DisputeOrderUseCase** — оркестрация процесса перевода заказа в статус Dispute
+- **ReleaseCoinsUseCase** — оркестрация процесса завершения процесса перевода, финализации балансов и перевода заказа в статус Fulfilled
 
 ---
 
@@ -98,7 +105,9 @@ php artisan test
 3. **Комиссия за вывод** — withdrawal fee на платформу
 4. **Комиссия за зачисление** — deposit fee на платформу
 
-### Обновление балансов
+## Механизм работы
+
+### Размещение заявки PutOrder
 
 **Счёт плательщика (source):**
 - `balance` уменьшается на `amount + withdrawalFee`
@@ -111,34 +120,63 @@ php artisan test
 **Платформа:**
 - `locked_balance` увеличивается на `depositFee + withdrawalFee`
 
-### Статусы транзакций
 
+### Удачное завершение ReleaseCoins
+
+**Счёт плательщика (source):**
+- `balance` уменьшается на `amount + withdrawalFee`
+- `locked_balance` уменьшается на `withdrawalFee + amount`
+
+**Счёт получателя (destination):**
+- `balance` изменяется: `balance - depositFee + amount`
+
+**Платформа:**
+- `balance` увеличивается на `depositFee + withdrawalFee`
+- `locked_balance` уменьшается на `depositFee + withdrawalFee`
+
+### Отмена CancelOrder
+
+**Счёт плательщика (source):**
+- `balance` увеличивается до исходного на `amount + withdrawalFee`
+- `locked_balance` уменьшается на `withdrawalFee + amount`
+
+**Счёт получателя (destination):**
+- `balance` не меняется
+- `locked_balance` изменяется: `locked_balance + depositFee - amount`
+
+**Платформа:**
+- `locked_balance` уменьшается на `depositFee + withdrawalFee`
+
+### Статусы транзакций
 - `request` — начальный статус при создании
 - `pending` — транзакция создана и обработана
+- `confirmed` — транзакция подтверждена
+- `canceled` — транзакция отменена
+- `fulfilled` — транзакция полностью исполнена
 
 ---
 
 ## API
 
-### Обновление баланса
+### Размещение заявки PutOrder
 
-**Endpoint:** `POST /public/api/v1/BalanceTransaction/update-balance`
+**Endpoint:** `POST /public/api/v1/BalanceTransaction/put-order`
 
 **Параметры запроса:**
 
 | Параметр | Тип | Обязательный | Описание |
-|----------|-----|--------------|----------|
-| source_account_id | integer | да | ID счёта плательщика |
-| destination_account_id | integer | да | ID счёта получателя |
-| coin | string | да | Валюта (например, `btc`) |
-| amount | numeric | да | Сумма (> 0) |
-| transaction_type | string | нет | `deposit` или `withdrawal` |
-| transaction_id | string | нет | Внешний ID транзакции (UUID7) |
-| chain_name | string | нет | Название сети (TRON и т.д.) |
-| chain_type | string | нет | Тип сети |
-| address | string | нет | Адрес кошелька |
-| order_id | integer | нет | ID заказа |
-| status | string | нет | Статус |
+|----------|-----|-------------|----------|
+| source_account_id | integer | да          | ID счёта плательщика |
+| destination_account_id | integer | да          | ID счёта получателя |
+| coin | string | да          | Валюта (например, `btc`) |
+| amount | numeric | да          | Сумма (> 0) |
+| transaction_type | string | нет         | `deposit` или `withdrawal` |
+| transaction_id | string | да        | Внешний ID транзакции (UUID7) |
+| chain_name | string | нет         | Название сети (TRON и т.д.) |
+| chain_type | string | нет         | Тип сети |
+| address | string | нет         | Адрес кошелька |
+| order_id | integer | нет         | ID заказа |
+| status | string | нет         | Статус |
 
 **Пример ответа (успех):**
 
@@ -159,6 +197,16 @@ php artisan test
 }
 ```
 
+### Изменение статусов CompleteOrder, CancelOrder и тд
+
+**Endpoint:** `PATCH /public/api/v1/BalanceTransaction/complete-order/{transaction_id}`
+
+**Параметры запроса:**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|-------------|----------|
+| transaction_id | string | да        | Внешний ID транзакции (UUID7) |
+
 ---
 
 ## Структура проекта
@@ -167,16 +215,22 @@ php artisan test
 src/Balance/
 ├── ApplicationLayer/
 │   └── UseCases/
-│       └── UpdateBalanceUseCase.php
+│       └── PutOrderUseCase.php
+│       └── CancelOrderUseCase.php
+│       └── CompleteOrderUseCase.php
+│       └── DisputeOrderUseCase.php
+│       └── ReleaseCoinsUseCase.php
 ├── DomainLayer/
 │   ├── Entities/
 │   │   ├── Account.php
 │   │   └── BalanceTransaction.php
+│   ├── Exceptions/
 │   ├── Repository/
 │   │   ├── AccountRepositoryInterface.php
 │   │   └── BalanceTransactionRepositoryInterface.php
 │   ├── Services/
 │   │   ├── BalanceUpdateService.php
+│   │   ├── CheckTransactionService.php
 │   │   └── CreateTransactionsService.php
 │   ├── Storage/
 │   │   ├── AccountStorageInterface.php
@@ -225,6 +279,6 @@ src/Balance/
    - совпадение валюты;
    - достаточность средств (для плательщика: `balance - locked_balance >= amount + withdrawalFee`).
 
-3. **Транзакционность** — вся операция выполняется в одной БД-транзакции.
+3. **Транзакционность** — все пользовательские сценарии выполняется в одной БД-транзакции. Результатом выполнения сценария являются создание или обработка 4 записей в таблице `balance_transactions` объединенных единым `transaction_id`.
 
-4. **Разморозка** заблокированных активов будет происходить при наступлении отдельного доменного события. При этом в случае положительного сценария статус связанных транзакций изменится на `completed`, а замороженные суммы учтены в основном балансе.
+4. По примеру работы биржи ByBit 'размещенный ордер' должен быть исполнен в установленные временные интервалы или отменен. Участники транзакции должны убедиться в том, что им поступила оплата по известной транзакции и произвести дополнительные действия на платформе. Список действий - пользовательских сценариев описан в 4 дополнительных UseCases без реализации. 

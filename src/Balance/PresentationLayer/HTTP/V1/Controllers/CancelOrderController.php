@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Src\Balance\PresentationLayer\HTTP\V1\Controllers;
+
+use App\Http\Controllers\Controller;
+use Psr\Log\LoggerInterface;
+use DomainDriven\BaseDomainStructure\Responder\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Src\Balance\PresentationLayer\HTTP\V1\Requests\CancelOrderRequest;
+use Src\Balance\ApplicationLayer\UseCases\CancelOrderUseCase;
+use Src\Balance\PresentationLayer\HTTP\V1\Responders\BalanceTransactionResponder;
+use Throwable;
+
+final class CancelOrderController extends Controller
+{
+    public function __construct(
+        public LoggerInterface $logger,
+        public CancelOrderUseCase $process,
+        public BalanceTransactionResponder $responder,
+    ) {}
+
+    public function __invoke(CancelOrderRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->process->execute(
+                $request->validated('transaction_id'),
+            );
+
+            $response = new JsonResponse;
+            $response->setData(
+                $this->responder->composeEntity($result),
+            );
+        } catch (Throwable $exception) {
+            $this->logger->critical(
+                'An unexpected error occurred with CancelOrderController' . $exception->getMessage(),
+                ['stacktrace' => $exception->getTraceAsString()],
+            );
+
+            $response = new JsonResponse();
+            $response->setStatusCode(Response::HTTP_INTERNAL_SERVER_ERROR);
+            $response->setData([
+                'errors' => [
+                    [
+                        'title' => 'internal_error',
+                        'detail' => 'An unexpected error occurred.',
+                    ],
+                ],
+            ]);
+
+        }
+
+        return $response;
+    }
+}

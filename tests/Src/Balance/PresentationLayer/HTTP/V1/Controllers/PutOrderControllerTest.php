@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use Src\Balance\DomainLayer\Repository\AccountRepositoryInterface;
 use Src\Balance\DomainLayer\Services\BalanceUpdateService;
 use Src\Balance\DomainLayer\Storage\AccountStorageInterface;
+use Src\Balance\InfrastructureLayer\Repository\BalanceTransactionRepository;
 
 uses(RefreshDatabase::class);
 
@@ -63,6 +64,7 @@ function createTransferTestSetup(array $operation): array
     $actingUser = $isWithdrawal ? $user2 : $user1;
 
     $transactionId = Str::uuid7()->toString();
+
     $transaction = BalanceTransaction::factory([
         'source_account_id' => $sourceAccount->id,
         'destination_account_id' => $destAccount->id,
@@ -91,7 +93,7 @@ test('it lock correct amount of coins after Deposit transaction submit', functio
     $setup = createTransferTestSetup($operation);
 
     $response = $this->actingAs($setup['actingUser'])
-        ->post(route('update-balance'), $setup['transaction']->toArray());
+        ->post(route('put-order'), $setup['transaction']->toArray());
 
     $response->assertOk();
     $response->assertJsonStructure([
@@ -191,7 +193,7 @@ test('it lock correct amount of coins after Withdrawal transaction submit', func
     $setup = createTransferTestSetup($operation);
 
     $response = $this->actingAs($setup['actingUser'])
-        ->post(route('update-balance'), $setup['transaction']->toArray());
+        ->post(route('put-order'), $setup['transaction']->toArray());
 
     $response->assertOk();
     $response->assertJsonStructure([

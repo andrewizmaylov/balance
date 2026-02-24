@@ -8,20 +8,20 @@ use App\Http\Controllers\Controller;
 use Psr\Log\LoggerInterface;
 use DomainDriven\BaseDomainStructure\Responder\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Src\Balance\PresentationLayer\HTTP\V1\Requests\UpdateBalanceRequest;
-use Src\Balance\ApplicationLayer\UseCases\UpdateBalanceUseCase;
+use Src\Balance\PresentationLayer\HTTP\V1\Requests\PutOrderRequest;
+use Src\Balance\ApplicationLayer\UseCases\PutOrderUseCase;
 use Src\Balance\PresentationLayer\HTTP\V1\Responders\BalanceTransactionResponder;
 use Throwable;
 
-final class UpdateBalanceController extends Controller
+final class PutOrderController extends Controller
 {
     public function __construct(
         public LoggerInterface $logger,
-        public UpdateBalanceUseCase $process,
+        public PutOrderUseCase $process,
         public BalanceTransactionResponder $responder,
     ) {}
 
-    public function __invoke(UpdateBalanceRequest $request): JsonResponse
+    public function __invoke(PutOrderRequest $request): JsonResponse
     {
         try {
             $result = $this->process->execute($request->all());
@@ -32,7 +32,7 @@ final class UpdateBalanceController extends Controller
             );
         } catch (Throwable $exception) {
             $this->logger->critical(
-                'An unexpected error occurred with UpdateBalanceController' . $exception->getMessage(),
+                'An unexpected error occurred with PutOrderController' . $exception->getMessage(),
                 ['stacktrace' => $exception->getTraceAsString()],
             );
 

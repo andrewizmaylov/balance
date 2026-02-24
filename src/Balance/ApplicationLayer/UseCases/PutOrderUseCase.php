@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Src\Balance\ApplicationLayer\UseCases;
 
 use Exception;
+use Throwable;
 use Illuminate\Support\Facades\DB;
 use Src\Balance\DomainLayer\Entities\BalanceTransaction;
-use Src\Balance\DomainLayer\Services\BalanceUpdateService;
 use Src\Balance\DomainLayer\Repository\BalanceTransactionRepositoryInterface;
+use Src\Balance\DomainLayer\Services\BalanceUpdateService;
 use Src\Balance\DomainLayer\Services\CreateTransactionsService;
-use Throwable;
 
-readonly class UpdateBalanceUseCase
+readonly class PutOrderUseCase
 {
     private ?int $transactionId;
 
@@ -28,7 +28,6 @@ readonly class UpdateBalanceUseCase
      */
     public function execute(array $data): BalanceTransaction
     {
-        // Perform DEPOSIT action from source to destination
         DB::transaction(function () use ($data, &$transactionId) {
             $accounts = $this->balanceService->validateAccounts($data);
 

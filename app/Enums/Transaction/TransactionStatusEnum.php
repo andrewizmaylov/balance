@@ -8,15 +8,17 @@ enum TransactionStatusEnum: string
 
     case Pending = 'pending';
 
+    case Confirmed = 'confirmed';
+
     case Completed = 'completed';
 
     case Cancelled = 'cancelled';
 
     case Failed = 'failed';
 
-    case Refunded = 'refunded';
+    case Fulfilled = 'fulfilled';
 
-    case Blocked = 'blocked';
+    case Dispute = 'dispute';
 
     case Unblocked = 'unblocked';
 }

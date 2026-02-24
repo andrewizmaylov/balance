@@ -6,5 +6,4 @@ enum TransactionTypeEnum: string
 {
     case Deposit = 'deposit';
     case Withdrawal = 'withdrawal';
-//    case Fee = 'fee';
 }
